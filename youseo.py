@@ -1,0 +1,241 @@
+#!/usr/bin/env python3
+"""
+YouTube SEO Analyzer - Command Line Interface
+Main entry point for analyzing YouTube videos and generating SEO recommendations
+"""
+
+import sys
+import argparse
+import json
+from datetime import datetime
+from youtube_analyzer import YouTubeSEOAnalyzer
+from sentiment_analyzer import SentimentAnalyzer
+from recommendation_engine import RecommendationEngine
+
+
+def print_banner():
+    """Print application banner"""
+    banner = """
+    ╔═══════════════════════════════════════════════════════════════╗
+    ║                                                               ║
+    ║           🎥  YouTube SEO Analyzer & Optimizer  🎥            ║
+    ║                                                               ║
+    ║         AI-Powered Video Analysis & Recommendations          ║
+    ║                                                               ║
+    ╚═══════════════════════════════════════════════════════════════╝
+    """
+    print(banner)
+
+
+def print_video_info(metadata):
+    """Print basic video information"""
+    print("\n" + "="*70)
+    print("📹 VIDEO INFORMATION")
+    print("="*70)
+    print(f"Title: {metadata['title']}")
+    print(f"Channel: {metadata['channel_title']}")
+    print(f"Published: {metadata['published_at'][:10]}")
+    print(f"Duration: {metadata['duration']}")
+    print(f"Video ID: {metadata['video_id']}")
+    print(f"Category: {metadata['category_id']}")
+
+
+def print_statistics(metadata, engagement):
+    """Print video statistics"""
+    stats = metadata['statistics']
+    
+    print("\n" + "="*70)
+    print("📊 STATISTICS & METRICS")
+    print("="*70)
+    print(f"Views: {stats['view_count']:,}")
+    print(f"Likes: {stats['like_count']:,}")
+    print(f"Comments: {stats['comment_count']:,}")
+    print(f"\nEngagement Rate: {engagement['engagement_rate']}%")
+    print(f"Like Rate: {engagement['like_rate']}%")
+    print(f"Comment Rate: {engagement['comment_rate']}%")
+    print(f"Estimated CTR: {engagement['estimated_ctr']}%")
+
+
+def print_sentiment_analysis(sentiment_data):
+    """Print sentiment analysis results"""
+    if not sentiment_data or sentiment_data['total_comments'] == 0:
+        print("\n⚠️  No comments available for sentiment analysis")
+        return
+    
+    print("\n" + "="*70)
+    print("💭 SENTIMENT ANALYSIS")
+    print("="*70)
+    print(f"Total Comments Analyzed: {sentiment_data['total_comments']}")
+    print(f"\nOverall Sentiment: {sentiment_data['overall_sentiment'].upper()}")
+    print(f"Average Polarity: {sentiment_data['average_polarity']}")
+    print(f"\nSentiment Distribution:")
+    print(f"  Positive: {sentiment_data['sentiment_percentages']['positive']}% ({sentiment_data['sentiment_distribution']['positive']} comments)")
+    print(f"  Neutral:  {sentiment_data['sentiment_percentages']['neutral']}% ({sentiment_data['sentiment_distribution']['neutral']} comments)")
+    print(f"  Negative: {sentiment_data['sentiment_percentages']['negative']}% ({sentiment_data['sentiment_distribution']['negative']} comments)")
+
+
+def print_comparison(top_videos, current_views):
+    """Print comparison with top-ranking videos"""
+    if not top_videos:
+        print("\n⚠️  No comparison data available")
+        return
+    
+    print("\n" + "="*70)
+    print("🏆 TOP VIDEOS IN NICHE (Comparison)")
+    print("="*70)
+    
+    avg_views = sum(v['view_count'] for v in top_videos) / len(top_videos)
+    print(f"Average Views of Top Videos: {int(avg_views):,}")
+    print(f"Your Video Views: {current_views:,}")
+    
+    if current_views < avg_views:
+        percentage = ((avg_views - current_views) / avg_views) * 100
+        print(f"Gap: {percentage:.1f}% below average")
+    else:
+        percentage = ((current_views - avg_views) / avg_views) * 100
+        print(f"Performance: {percentage:.1f}% above average! 🎉")
+    
+    print(f"\nTop {len(top_videos)} Videos:")
+    for i, video in enumerate(top_videos[:5], 1):
+        print(f"  {i}. {video['title'][:60]}...")
+        print(f"     Views: {video['view_count']:,} | Likes: {video['like_count']:,}")
+
+
+def save_detailed_report(analysis_data, recommendations, filename):
+    """Save detailed analysis report to JSON file"""
+    report = {
+        'timestamp': datetime.now().isoformat(),
+        'video_info': {
+            'video_id': analysis_data['metadata']['video_id'],
+            'title': analysis_data['metadata']['title'],
+            'channel': analysis_data['metadata']['channel_title'],
+            'url': f"https://www.youtube.com/watch?v={analysis_data['metadata']['video_id']}"
+        },
+        'metadata': analysis_data['metadata'],
+        'engagement': analysis_data['engagement'],
+        'sentiment': analysis_data.get('sentiment', {}),
+        'top_videos': analysis_data.get('top_videos', []),
+        'recommendations': recommendations
+    }
+    
+    with open(filename, 'w', encoding='utf-8') as f:
+        json.dump(report, f, indent=2, ensure_ascii=False)
+    
+    print(f"\n💾 Detailed report saved to: {filename}")
+
+
+def main():
+    """Main application function"""
+    parser = argparse.ArgumentParser(
+        description='YouTube SEO Analyzer - Analyze videos and get AI-powered recommendations',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python youseo.py https://www.youtube.com/watch?v=VIDEO_ID
+  python youseo.py https://youtu.be/VIDEO_ID --output report.json
+  python youseo.py https://www.youtube.com/shorts/VIDEO_ID --no-ai
+        """
+    )
+    
+    parser.add_argument(
+        'video_url',
+        help='YouTube video URL (supports regular videos and shorts)'
+    )
+    
+    parser.add_argument(
+        '-o', '--output',
+        help='Save detailed report to JSON file',
+        metavar='FILE'
+    )
+    
+    parser.add_argument(
+        '--no-ai',
+        action='store_true',
+        help='Disable AI-powered insights (useful if OpenAI API key is not set)'
+    )
+    
+    parser.add_argument(
+        '--no-comments',
+        action='store_true',
+        help='Skip comment sentiment analysis'
+    )
+    
+    parser.add_argument(
+        '--max-comments',
+        type=int,
+        default=100,
+        help='Maximum number of comments to analyze (default: 100)'
+    )
+    
+    args = parser.parse_args()
+    
+    # Print banner
+    print_banner()
+    
+    try:
+        # Initialize analyzers
+        print("🔧 Initializing analyzers...")
+        youtube_analyzer = YouTubeSEOAnalyzer()
+        sentiment_analyzer = SentimentAnalyzer()
+        
+        if args.no_ai:
+            print("⚠️  AI insights disabled")
+            recommendation_engine = RecommendationEngine(api_key=None)
+        else:
+            recommendation_engine = RecommendationEngine()
+        
+        # Analyze video
+        print(f"\n🔍 Analyzing video: {args.video_url}")
+        print("-" * 70)
+        
+        analysis_data = youtube_analyzer.analyze_video(args.video_url)
+        
+        # Print video information
+        print_video_info(analysis_data['metadata'])
+        print_statistics(analysis_data['metadata'], analysis_data['engagement'])
+        
+        # Sentiment analysis
+        if not args.no_comments:
+            print("\n🧠 Analyzing comment sentiment...")
+            sentiment_data = sentiment_analyzer.analyze_comments(analysis_data['comments'])
+            analysis_data['sentiment'] = sentiment_data
+            print_sentiment_analysis(sentiment_data)
+        
+        # Comparison with top videos
+        print_comparison(
+            analysis_data['top_videos'],
+            analysis_data['metadata']['statistics']['view_count']
+        )
+        
+        # Generate recommendations
+        print("\n🤖 Generating SEO recommendations...")
+        recommendations = recommendation_engine.generate_recommendations(analysis_data)
+        
+        # Print recommendations report
+        report = recommendation_engine.generate_report(recommendations)
+        print("\n" + report)
+        
+        # Save detailed report if requested
+        if args.output:
+            save_detailed_report(analysis_data, recommendations, args.output)
+        
+        print("\n✅ Analysis complete!")
+        print("\nNext Steps:")
+        print("  1. Review the recommendations above")
+        print("  2. Implement suggested optimizations")
+        print("  3. Monitor performance after changes")
+        print("  4. Re-analyze after 1-2 weeks to track improvement")
+        
+    except ValueError as e:
+        print(f"\n❌ Error: {e}", file=sys.stderr)
+        return 1
+    except Exception as e:
+        print(f"\n❌ Unexpected error: {e}", file=sys.stderr)
+        print("Please check your API keys and internet connection.", file=sys.stderr)
+        return 1
+    
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
