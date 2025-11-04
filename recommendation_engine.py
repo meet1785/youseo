@@ -4,9 +4,15 @@ Generates SEO recommendations using AI analysis
 """
 
 import os
-from typing import Dict, List
-from openai import OpenAI
+from typing import Dict, List, Optional
 from dotenv import load_dotenv
+
+# Optional OpenAI import
+try:
+    from openai import OpenAI
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
 
 load_dotenv()
 
@@ -17,10 +23,12 @@ class RecommendationEngine:
     def __init__(self, api_key: Optional[str] = None):
         """Initialize recommendation engine with OpenAI API"""
         self.api_key = api_key or os.getenv('OPENAI_API_KEY')
-        self.use_ai = bool(self.api_key)
+        self.use_ai = bool(self.api_key) and OPENAI_AVAILABLE
         
-        if self.use_ai:
+        if self.use_ai and OPENAI_AVAILABLE:
             self.client = OpenAI(api_key=self.api_key)
+        else:
+            self.client = None
     
     def generate_recommendations(self, analysis_data: Dict) -> Dict:
         """Generate comprehensive recommendations based on analysis"""
@@ -402,8 +410,6 @@ Provide 5 specific, prioritized recommendations to improve this video's performa
         
         return "\n".join(report)
 
-
-from typing import Optional
 
 if __name__ == "__main__":
     # Test the recommendation engine
