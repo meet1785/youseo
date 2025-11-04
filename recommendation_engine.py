@@ -16,6 +16,25 @@ except ImportError:
 
 load_dotenv()
 
+# Load configuration
+def load_config():
+    """Load configuration from config.json"""
+    config_path = os.path.join(os.path.dirname(__file__), 'config.json')
+    try:
+        with open(config_path, 'r') as f:
+            return json.load(f)
+    except Exception:
+        # Return default config if file not found
+        return {
+            'api_settings': {
+                'openai_model': 'gpt-3.5-turbo',
+                'max_ai_tokens': 500
+            }
+        }
+
+import json
+CONFIG = load_config()
+
 
 class RecommendationEngine:
     """Generate AI-powered SEO recommendations"""
@@ -318,13 +337,17 @@ Like Rate: {engagement['like_rate']}%
 
 Provide 5 specific, prioritized recommendations to improve this video's performance."""
 
+            # Get model from config
+            model = CONFIG.get('api_settings', {}).get('openai_model', 'gpt-3.5-turbo')
+            max_tokens = CONFIG.get('api_settings', {}).get('max_ai_tokens', 500)
+
             response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
+                model=model,
                 messages=[
                     {"role": "system", "content": "You are an expert YouTube SEO consultant with deep knowledge of the platform's algorithm and best practices."},
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=500,
+                max_tokens=max_tokens,
                 temperature=0.7
             )
             

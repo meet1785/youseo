@@ -15,6 +15,10 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+# Constants
+MIN_CHANNEL_SUBSCRIBERS_FOR_CTR = 1000  # Minimum subscriber count for CTR calculation
+
+
 class YouTubeSEOAnalyzer:
     """Main class for analyzing YouTube videos and providing SEO recommendations"""
     
@@ -131,7 +135,7 @@ class YouTubeSEOAnalyzer:
         
         # Estimate CTR based on views and channel size
         channel_subs = metadata['channel_statistics']['subscriber_count']
-        estimated_ctr = min((views / max(channel_subs, 1000)) * 100, 100)
+        estimated_ctr = min((views / max(channel_subs, MIN_CHANNEL_SUBSCRIBERS_FOR_CTR)) * 100, 100)
         
         return {
             'engagement_rate': round(engagement_rate, 2),
