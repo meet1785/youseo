@@ -11,6 +11,7 @@ An AI-powered YouTube SEO analysis tool that helps content creators optimize the
 - **🤖 AI-Powered Recommendations**: Generates specific, actionable SEO improvements
 - **📱 Supports All Video Types**: Works with regular videos and YouTube Shorts
 - **📈 Comprehensive Reporting**: Detailed JSON reports for tracking improvements
+- **⚡ Intelligent Caching**: Reduces API quota usage by caching responses with configurable TTL
 
 ## 🚀 Quick Start
 
@@ -87,6 +88,18 @@ python youseo.py https://www.youtube.com/watch?v=VIDEO_ID --no-ai
 python youseo.py https://www.youtube.com/watch?v=VIDEO_ID --no-comments
 ```
 
+**Cache management:**
+```bash
+# View cache statistics
+python youseo.py --cache-stats
+
+# Clear all cached data
+python youseo.py --cache-clear
+
+# Disable cache for a single analysis
+python youseo.py https://www.youtube.com/watch?v=VIDEO_ID --no-cache
+```
+
 ## 📊 What Gets Analyzed
 
 ### Video Metadata
@@ -155,6 +168,50 @@ The tool provides detailed recommendations across multiple areas:
 - Context-aware suggestions
 - Priority-ranked action items
 
+## ⚡ Intelligent Caching
+
+The analyzer includes a smart caching system that significantly improves performance and reduces API quota usage:
+
+### Benefits
+- **Reduced API Usage**: Cached responses don't count against your YouTube API quota
+- **Faster Analysis**: Re-analyzing videos is nearly instantaneous with cached data
+- **Offline Development**: Test and develop without consuming API quota
+- **Configurable TTL**: Set different cache lifetimes for different data types
+
+### How It Works
+- Video metadata cached for 1 hour (configurable)
+- Comments cached for 30 minutes (configurable)
+- Search results cached for 2 hours (configurable)
+- Automatic cleanup of expired entries
+- Cache stored locally in `.cache` directory
+
+### Configuration
+Edit `config.json` to customize cache settings:
+```json
+{
+  "cache_settings": {
+    "enabled": true,
+    "cache_directory": ".cache",
+    "default_ttl_seconds": 3600,
+    "video_metadata_ttl_seconds": 3600,
+    "comments_ttl_seconds": 1800,
+    "search_results_ttl_seconds": 7200
+  }
+}
+```
+
+### Cache Management
+```bash
+# View cache statistics
+python youseo.py --cache-stats
+
+# Clear all cached data
+python youseo.py --cache-clear
+
+# Disable cache for one-time analysis
+python youseo.py VIDEO_URL --no-cache
+```
+
 ## 📄 Example Output
 
 ```
@@ -194,10 +251,14 @@ youseo/
 ├── youtube_analyzer.py       # YouTube API integration
 ├── sentiment_analyzer.py     # Comment sentiment analysis
 ├── recommendation_engine.py  # AI recommendation generator
+├── cache_manager.py          # Intelligent caching system
+├── test_analyzer.py          # Core functionality tests
+├── test_cache.py             # Cache system tests
+├── config.json               # Configuration settings
 ├── requirements.txt          # Python dependencies
-├── .env.example             # Example environment variables
-├── .gitignore               # Git ignore rules
-└── README.md                # This file
+├── .env.example              # Example environment variables
+├── .gitignore                # Git ignore rules
+└── README.md                 # This file
 ```
 
 ## 🤝 Contributing
@@ -216,7 +277,8 @@ This project is open source and available under the MIT License.
 
 ## ⚠️ Important Notes
 
-- **API Quotas**: YouTube Data API has daily quota limits. Be mindful of your usage.
+- **API Quotas**: YouTube Data API has daily quota limits. Use caching to minimize API usage!
+- **Caching**: The tool automatically caches API responses to reduce quota consumption.
 - **Rate Limiting**: The tool respects API rate limits to avoid issues.
 - **Privacy**: Comments are analyzed locally and not stored permanently.
 - **OpenAI Costs**: AI insights use OpenAI API which may incur costs based on usage.
