@@ -1,0 +1,26 @@
+{
+  "name": "YouTube SEO Analyzer",
+  "version": "1.0.0",
+  "description": "AI-powered YouTube video SEO analysis and optimization tool",
+  "analysis_settings": {
+    "max_comments_to_fetch": 100,
+    "max_top_videos": 5,
+    "sentiment_threshold": {
+      "positive": 0.1,
+      "negative": -0.1
+    }
+  },
+  "scoring_weights": {
+    "title": 20,
+    "description": 15,
+    "tags": 15,
+    "thumbnail": 15,
+    "engagement": 20,
+    "seo": 15
+  },
+  "api_settings": {
+    "youtube_api_version": "v3",
+    "openai_model": "gpt-3.5-turbo",
+    "max_ai_tokens": 500
+  }
+}
