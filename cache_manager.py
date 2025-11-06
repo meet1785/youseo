@@ -8,7 +8,6 @@ import json
 import hashlib
 import time
 from typing import Optional, Dict, Any
-from datetime import datetime, timedelta
 from pathlib import Path
 
 
@@ -199,7 +198,7 @@ class CacheManager:
                         expired_count += 1
                     else:
                         valid_count += 1
-                except:
+                except (json.JSONDecodeError, IOError, OSError, KeyError):
                     expired_count += 1
             
             return {
@@ -245,7 +244,7 @@ class CacheManager:
                     if time.time() - cached_at > ttl:
                         cache_file.unlink()
                         count += 1
-                except:
+                except (json.JSONDecodeError, IOError, OSError, KeyError):
                     # Invalid cache file, remove it
                     cache_file.unlink()
                     count += 1

@@ -202,7 +202,7 @@ Examples:
             with open(config_path, 'r') as f:
                 config = json_lib.load(f)
             cache_dir = config.get('cache_settings', {}).get('cache_directory', '.cache')
-        except:
+        except (FileNotFoundError, json_lib.JSONDecodeError, KeyError):
             cache_dir = '.cache'
         
         cache = CacheManager(cache_dir=cache_dir)
