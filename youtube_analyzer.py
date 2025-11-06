@@ -11,6 +11,7 @@ from urllib.parse import urlparse, parse_qs
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from dotenv import load_dotenv
+from cache_manager import CacheManager
 
 # Load environment variables
 load_dotenv()
@@ -19,16 +20,48 @@ load_dotenv()
 MIN_CHANNEL_SUBSCRIBERS_FOR_CTR = 1000  # Minimum subscriber count for CTR calculation
 
 
+def load_config():
+    """Load configuration from config.json"""
+    config_path = os.path.join(os.path.dirname(__file__), 'config.json')
+    try:
+        with open(config_path, 'r') as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
 class YouTubeSEOAnalyzer:
     """Main class for analyzing YouTube videos and providing SEO recommendations"""
     
-    def __init__(self, api_key: Optional[str] = None):
-        """Initialize the analyzer with YouTube API key"""
+    def __init__(self, api_key: Optional[str] = None, use_cache: bool = True):
+        """
+        Initialize the analyzer with YouTube API key
+        
+        Args:
+            api_key: YouTube API key (uses env var if not provided)
+            use_cache: Whether to enable caching (default: True)
+        """
         self.api_key = api_key or os.getenv('YOUTUBE_API_KEY')
         if not self.api_key:
             raise ValueError("YouTube API key is required. Set YOUTUBE_API_KEY environment variable.")
         
         self.youtube = build('youtube', 'v3', developerKey=self.api_key)
+        
+        # Load configuration
+        config = load_config()
+        cache_settings = config.get('cache_settings', {})
+        
+        # Initialize cache if enabled
+        self.use_cache = use_cache and cache_settings.get('enabled', True)
+        if self.use_cache:
+            cache_dir = cache_settings.get('cache_directory', '.cache')
+            default_ttl = cache_settings.get('default_ttl_seconds', 3600)
+            self.cache = CacheManager(cache_dir=cache_dir, default_ttl=default_ttl)
+            self.video_ttl = cache_settings.get('video_metadata_ttl_seconds', 3600)
+            self.comments_ttl = cache_settings.get('comments_ttl_seconds', 1800)
+            self.search_ttl = cache_settings.get('search_results_ttl_seconds', 7200)
+        else:
+            self.cache = None
     
     def extract_video_id(self, url: str) -> Optional[str]:
         """Extract video ID from YouTube URL"""
@@ -57,7 +90,17 @@ class YouTubeSEOAnalyzer:
         return None
     
     def fetch_video_metadata(self, video_id: str) -> Dict:
-        """Fetch comprehensive metadata for a YouTube video"""
+        """
+        Fetch comprehensive metadata for a YouTube video
+        Uses cache if available to reduce API quota usage
+        """
+        # Check cache first
+        if self.use_cache and self.cache:
+            cached_data = self.cache.get('video', video_id)
+            if cached_data:
+                print(f"  ⚡ Using cached metadata for video: {video_id}")
+                return cached_data
+        
         try:
             # Fetch video details
             video_response = self.youtube.videos().list(
@@ -107,6 +150,10 @@ class YouTubeSEOAnalyzer:
                 }
             }
             
+            # Cache the metadata
+            if self.use_cache and self.cache:
+                self.cache.set('video', video_id, metadata, ttl=self.video_ttl)
+            
             return metadata
             
         except HttpError as e:
@@ -145,7 +192,20 @@ class YouTubeSEOAnalyzer:
         }
     
     def fetch_top_ranking_videos(self, search_query: str, max_results: int = 5) -> List[Dict]:
-        """Fetch top-ranking videos in the same niche"""
+        """
+        Fetch top-ranking videos in the same niche
+        Uses cache if available to reduce API quota usage
+        """
+        # Create cache key from search query and max results
+        cache_key = f"{search_query}_{max_results}"
+        
+        # Check cache first
+        if self.use_cache and self.cache:
+            cached_data = self.cache.get('search', cache_key)
+            if cached_data:
+                print(f"  ⚡ Using cached search results for: {search_query[:30]}...")
+                return cached_data
+        
         try:
             search_response = self.youtube.search().list(
                 q=search_query,
@@ -181,6 +241,10 @@ class YouTubeSEOAnalyzer:
                     'comment_count': int(statistics.get('commentCount', 0))
                 })
             
+            # Cache the search results
+            if self.use_cache and self.cache:
+                self.cache.set('search', cache_key, top_videos, ttl=self.search_ttl)
+            
             return top_videos
             
         except HttpError as e:
@@ -188,7 +252,20 @@ class YouTubeSEOAnalyzer:
             return []
     
     def fetch_video_comments(self, video_id: str, max_results: int = 100) -> List[str]:
-        """Fetch comments from a video for sentiment analysis"""
+        """
+        Fetch comments from a video for sentiment analysis
+        Uses cache if available to reduce API quota usage
+        """
+        # Create cache key from video ID and max results
+        cache_key = f"{video_id}_{max_results}"
+        
+        # Check cache first
+        if self.use_cache and self.cache:
+            cached_data = self.cache.get('comments', cache_key)
+            if cached_data:
+                print(f"  ⚡ Using cached comments for video: {video_id}")
+                return cached_data
+        
         try:
             comments = []
             request = self.youtube.commentThreads().list(
@@ -203,6 +280,10 @@ class YouTubeSEOAnalyzer:
             for item in response.get('items', []):
                 comment = item['snippet']['topLevelComment']['snippet']['textDisplay']
                 comments.append(comment)
+            
+            # Cache the comments
+            if self.use_cache and self.cache:
+                self.cache.set('comments', cache_key, comments, ttl=self.comments_ttl)
             
             return comments
             

@@ -5,12 +5,14 @@ Main entry point for analyzing YouTube videos and generating SEO recommendations
 """
 
 import sys
+import os
 import argparse
 import json
 from datetime import datetime
 from youtube_analyzer import YouTubeSEOAnalyzer
 from sentiment_analyzer import SentimentAnalyzer
 from recommendation_engine import RecommendationEngine
+
 
 
 def print_banner():
@@ -134,11 +136,14 @@ Examples:
   python youseo.py https://www.youtube.com/watch?v=VIDEO_ID
   python youseo.py https://youtu.be/VIDEO_ID --output report.json
   python youseo.py https://www.youtube.com/shorts/VIDEO_ID --no-ai
+  python youseo.py --cache-stats
+  python youseo.py --cache-clear
         """
     )
     
     parser.add_argument(
         'video_url',
+        nargs='?',
         help='YouTube video URL (supports regular videos and shorts)'
     )
     
@@ -167,7 +172,68 @@ Examples:
         help='Maximum number of comments to analyze (default: 100)'
     )
     
+    parser.add_argument(
+        '--no-cache',
+        action='store_true',
+        help='Disable caching for this analysis'
+    )
+    
+    parser.add_argument(
+        '--cache-stats',
+        action='store_true',
+        help='Show cache statistics and exit'
+    )
+    
+    parser.add_argument(
+        '--cache-clear',
+        action='store_true',
+        help='Clear all cached data and exit'
+    )
+    
     args = parser.parse_args()
+    
+    # Handle cache management commands
+    if args.cache_stats or args.cache_clear:
+        from cache_manager import CacheManager
+        import json as json_lib
+        
+        config_path = os.path.join(os.path.dirname(__file__), 'config.json')
+        try:
+            with open(config_path, 'r') as f:
+                config = json_lib.load(f)
+            cache_dir = config.get('cache_settings', {}).get('cache_directory', '.cache')
+        except:
+            cache_dir = '.cache'
+        
+        cache = CacheManager(cache_dir=cache_dir)
+        
+        if args.cache_stats:
+            print("\n📊 Cache Statistics")
+            print("=" * 70)
+            stats = cache.get_stats()
+            print(f"Cache Directory: {stats['cache_directory']}")
+            print(f"Total Size: {stats['total_cache_size_mb']} MB")
+            print(f"\nVideo Metadata:")
+            print(f"  Total: {stats['video']['total']} | Valid: {stats['video']['valid']} | Expired: {stats['video']['expired']}")
+            print(f"Comments:")
+            print(f"  Total: {stats['comments']['total']} | Valid: {stats['comments']['valid']} | Expired: {stats['comments']['expired']}")
+            print(f"Search Results:")
+            print(f"  Total: {stats['search']['total']} | Valid: {stats['search']['valid']} | Expired: {stats['search']['expired']}")
+            
+            # Cleanup expired entries
+            expired_count = cache.cleanup_expired()
+            if expired_count > 0:
+                print(f"\n🧹 Cleaned up {expired_count} expired cache entries")
+            return 0
+        
+        if args.cache_clear:
+            count = cache.clear()
+            print(f"\n🗑️  Cleared {count} cache entries")
+            return 0
+    
+    # Require video URL for analysis
+    if not args.video_url:
+        parser.error("video_url is required for video analysis")
     
     # Print banner
     print_banner()
@@ -175,8 +241,14 @@ Examples:
     try:
         # Initialize analyzers
         print("🔧 Initializing analyzers...")
-        youtube_analyzer = YouTubeSEOAnalyzer()
+        use_cache = not args.no_cache
+        youtube_analyzer = YouTubeSEOAnalyzer(use_cache=use_cache)
         sentiment_analyzer = SentimentAnalyzer()
+        
+        if use_cache:
+            print("  ⚡ Cache enabled - API quota usage will be reduced")
+        else:
+            print("  ⚠️  Cache disabled - will use full API quota")
         
         if args.no_ai:
             print("⚠️  AI insights disabled")
