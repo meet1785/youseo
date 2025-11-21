@@ -181,7 +181,10 @@ def handle_batch_analysis(args):
         batch_analyzer.print_summary_report()
         
         # Export results
-        output_file = args.batch_output or f"batch_results.{args.batch_format}"
+        if args.batch_output:
+            output_file = args.batch_output
+        else:
+            output_file = f"batch_results.{args.batch_format}"
         batch_analyzer.export_results(output_file, args.batch_format)
         
         print("\n✅ Batch analysis complete!")

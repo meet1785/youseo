@@ -51,15 +51,15 @@ class BatchAnalyzer:
                 reader = csv.reader(f)
                 # Skip header if present
                 first_row = next(reader, None)
-                if first_row and not first_row[0].startswith('http'):
+                if first_row and len(first_row) > 0 and not first_row[0].startswith('http'):
                     # First row is header, continue with next rows
                     pass
-                elif first_row:
+                elif first_row and len(first_row) > 0:
                     # First row contains URL
                     urls.append(first_row[0].strip())
                 
                 for row in reader:
-                    if row and row[0].strip():
+                    if row and len(row) > 0 and row[0].strip():
                         urls.append(row[0].strip())
         else:
             # Assume .txt or plain text file
@@ -107,10 +107,12 @@ class BatchAnalyzer:
                 
                 # Sentiment analysis
                 if analyze_comments:
-                    sentiment_data = self.sentiment_analyzer.analyze_comments(
-                        analysis_data['comments'][:max_comments]
-                    )
-                    analysis_data['sentiment'] = sentiment_data
+                    comments = analysis_data.get('comments', [])
+                    if comments:
+                        sentiment_data = self.sentiment_analyzer.analyze_comments(
+                            comments[:max_comments]
+                        )
+                        analysis_data['sentiment'] = sentiment_data
                 
                 # Generate recommendations
                 recommendations = self.recommendation_engine.generate_recommendations(
