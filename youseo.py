@@ -12,6 +12,7 @@ from datetime import datetime
 from youtube_analyzer import YouTubeSEOAnalyzer
 from sentiment_analyzer import SentimentAnalyzer
 from recommendation_engine import RecommendationEngine
+from batch_analyzer import BatchAnalyzer
 
 
 
@@ -126,6 +127,84 @@ def save_detailed_report(analysis_data, recommendations, filename):
     print(f"\n💾 Detailed report saved to: {filename}")
 
 
+def handle_batch_analysis(args):
+    """Handle batch analysis of multiple videos"""
+    print_banner()
+    
+    try:
+        # Initialize analyzers
+        print("🔧 Initializing analyzers...")
+        use_cache = not args.no_cache
+        youtube_analyzer = YouTubeSEOAnalyzer(use_cache=use_cache)
+        sentiment_analyzer = SentimentAnalyzer()
+        
+        if use_cache:
+            print("  ⚡ Cache enabled - API quota usage will be reduced")
+        else:
+            print("  ⚠️  Cache disabled - will use full API quota")
+        
+        if args.no_ai:
+            print("⚠️  AI insights disabled")
+            recommendation_engine = RecommendationEngine(api_key=None)
+        else:
+            recommendation_engine = RecommendationEngine()
+        
+        # Create batch analyzer
+        batch_analyzer = BatchAnalyzer(
+            youtube_analyzer,
+            sentiment_analyzer,
+            recommendation_engine
+        )
+        
+        # Get URLs to analyze
+        if args.batch:
+            print(f"\n📂 Reading URLs from file: {args.batch}")
+            urls = batch_analyzer.parse_urls_from_file(args.batch)
+        else:
+            urls = args.urls
+        
+        if not urls:
+            print("❌ No URLs found to analyze")
+            return 1
+        
+        print(f"Found {len(urls)} video(s) to analyze")
+        
+        # Analyze videos
+        results = batch_analyzer.analyze_videos(
+            urls,
+            analyze_comments=not args.no_comments,
+            max_comments=args.max_comments,
+            use_ai=not args.no_ai
+        )
+        
+        # Print summary report
+        batch_analyzer.print_summary_report()
+        
+        # Export results
+        output_file = args.batch_output or f"batch_results.{args.batch_format}"
+        batch_analyzer.export_results(output_file, args.batch_format)
+        
+        print("\n✅ Batch analysis complete!")
+        print("\nNext Steps:")
+        print("  1. Review the batch summary above")
+        print(f"  2. Check detailed results in: {output_file}")
+        print("  3. Focus on improving lowest-performing videos")
+        print("  4. Apply insights from best-performing videos to others")
+        
+        return 0
+        
+    except FileNotFoundError as e:
+        print(f"\n❌ Error: {e}", file=sys.stderr)
+        return 1
+    except ValueError as e:
+        print(f"\n❌ Error: {e}", file=sys.stderr)
+        return 1
+    except Exception as e:
+        print(f"\n❌ Unexpected error: {e}", file=sys.stderr)
+        print("Please check your API keys and internet connection.", file=sys.stderr)
+        return 1
+
+
 def main():
     """Main application function"""
     parser = argparse.ArgumentParser(
@@ -133,9 +212,16 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
+  # Single video analysis
   python youseo.py https://www.youtube.com/watch?v=VIDEO_ID
   python youseo.py https://youtu.be/VIDEO_ID --output report.json
   python youseo.py https://www.youtube.com/shorts/VIDEO_ID --no-ai
+  
+  # Batch analysis
+  python youseo.py --batch videos.txt --batch-output results.json
+  python youseo.py --urls URL1 URL2 URL3 --batch-format csv
+  
+  # Cache management
   python youseo.py --cache-stats
   python youseo.py --cache-clear
         """
@@ -190,6 +276,33 @@ Examples:
         help='Clear all cached data and exit'
     )
     
+    # Batch analysis options
+    parser.add_argument(
+        '--batch',
+        metavar='FILE',
+        help='Batch analyze videos from file (txt or csv)'
+    )
+    
+    parser.add_argument(
+        '--urls',
+        nargs='+',
+        metavar='URL',
+        help='Batch analyze multiple video URLs'
+    )
+    
+    parser.add_argument(
+        '--batch-output',
+        metavar='FILE',
+        help='Output file for batch results (default: batch_results.json)'
+    )
+    
+    parser.add_argument(
+        '--batch-format',
+        choices=['json', 'csv'],
+        default='json',
+        help='Batch output format: json or csv (default: json)'
+    )
+    
     args = parser.parse_args()
     
     # Handle cache management commands
@@ -231,9 +344,13 @@ Examples:
             print(f"\n🗑️  Cleared {count} cache entries")
             return 0
     
-    # Require video URL for analysis
+    # Handle batch analysis
+    if args.batch or args.urls:
+        return handle_batch_analysis(args)
+    
+    # Require video URL for single video analysis
     if not args.video_url:
-        parser.error("video_url is required for video analysis")
+        parser.error("video_url is required for video analysis (or use --batch/--urls for batch analysis)")
     
     # Print banner
     print_banner()

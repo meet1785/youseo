@@ -10,7 +10,8 @@ An AI-powered YouTube SEO analysis tool that helps content creators optimize the
 - **🏆 Competitive Analysis**: Compares your video with top-ranking videos in the same niche
 - **🤖 AI-Powered Recommendations**: Generates specific, actionable SEO improvements
 - **📱 Supports All Video Types**: Works with regular videos and YouTube Shorts
-- **📈 Comprehensive Reporting**: Detailed JSON reports for tracking improvements
+- **🎬 Batch Analysis**: Analyze multiple videos at once with comparative insights
+- **📈 Comprehensive Reporting**: Detailed JSON/CSV reports for tracking improvements
 - **⚡ Intelligent Caching**: Reduces API quota usage by caching responses with configurable TTL
 
 ## 🚀 Quick Start
@@ -86,6 +87,21 @@ python youseo.py https://www.youtube.com/watch?v=VIDEO_ID --no-ai
 **Skip comment analysis:**
 ```bash
 python youseo.py https://www.youtube.com/watch?v=VIDEO_ID --no-comments
+```
+
+**Batch analysis from file:**
+```bash
+# Analyze multiple videos from a text file (one URL per line)
+python youseo.py --batch videos.txt --batch-output results.json
+
+# Export batch results as CSV
+python youseo.py --batch videos.txt --batch-format csv
+```
+
+**Batch analysis from command line:**
+```bash
+# Analyze multiple videos directly from command line
+python youseo.py --urls URL1 URL2 URL3 --batch-output results.json
 ```
 
 **Cache management:**
@@ -251,11 +267,14 @@ youseo/
 ├── youtube_analyzer.py       # YouTube API integration
 ├── sentiment_analyzer.py     # Comment sentiment analysis
 ├── recommendation_engine.py  # AI recommendation generator
+├── batch_analyzer.py         # Batch video analysis
 ├── cache_manager.py          # Intelligent caching system
 ├── test_analyzer.py          # Core functionality tests
+├── test_batch.py             # Batch analysis tests
 ├── test_cache.py             # Cache system tests
 ├── config.json               # Configuration settings
 ├── requirements.txt          # Python dependencies
+├── example_videos.txt        # Example batch input file
 ├── .env.example              # Example environment variables
 ├── .gitignore                # Git ignore rules
 └── README.md                 # This file
