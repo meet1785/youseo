@@ -1,0 +1,11 @@
+# Example YouTube Video URLs for Batch Analysis
+# Lines starting with # are comments and will be ignored
+# One URL per line
+
+# Example videos (replace with your own URLs)
+https://www.youtube.com/watch?v=dQw4w9WgXcQ
+https://www.youtube.com/watch?v=jNQXAC9IVRw
+https://www.youtube.com/watch?v=9bZkp7q19f0
+
+# YouTube Shorts are also supported
+https://www.youtube.com/shorts/abc123xyz
